@@ -92,13 +92,12 @@ func (c *client) AddResource(ctx context.Context, resource *common.Origin) error
 	return err
 }
 
-func (c *client) GetResource(ctx context.Context, id string, originType string) (*common.Origin, error) {
+func (c *client) GetResource(ctx context.Context, id, originType string) (*common.Origin, error) {
 	input := authorizeApi.GetResourceInput{
 		Id:         id,
 		OriginType: originType,
 	}
 	resource, err := c.api.GetResource(ctx, &input)
-
 	if err != nil {
 		return nil, err
 	}

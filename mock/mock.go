@@ -95,7 +95,7 @@ func (mock *Client) AddResource(ctx context.Context, resource *common.Origin) er
 	return args.Error(0)
 }
 
-func (mock *Client) GetResource(ctx context.Context, id string, originType string) (*common.Origin, error) {
+func (mock *Client) GetResource(ctx context.Context, id, originType string) (*common.Origin, error) {
 	args := mock.Called(id, originType)
 	return args.Get(0).(*common.Origin), args.Error(1)
 }
