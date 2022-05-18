@@ -2,9 +2,9 @@ package reconnect
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/SKF/go-utility/v2/log"
-	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 )
@@ -22,7 +22,7 @@ func UnaryInterceptor(opts ...CallOption) func(ctx context.Context, method strin
 
 			newCtx, newCC, newOpts, err := options.newClientConn(ctx, cc, opts...)
 			if err != nil {
-				return errors.Wrap(err, "failed to reconnect")
+				return fmt.Errorf("failed to reconnect: %w", err)
 			}
 			return invoker(newCtx, method, req, reply, newCC, newOpts...)
 		}

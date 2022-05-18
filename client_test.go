@@ -33,7 +33,7 @@ func clientForFakeHostName(t *testing.T, authority, host, port string, servers .
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
-	require.NoError(t, client.DialWithContext(ctx, hostnameWithAuthority, port, grpc.WithTransportCredentials(insecure.NewCredentials())))
+	require.NoError(t, client.Dial(ctx, hostnameWithAuthority, port, grpc.WithTransportCredentials(insecure.NewCredentials())))
 
 	return client
 }
@@ -151,7 +151,7 @@ func Test_Loadbalancing(t *testing.T) {
 	defer cancel()
 
 	for i := 0; i < backends; i++ {
-		err := client.DeepPingWithContext(ctx)
+		err := client.DeepPing(ctx)
 		require.NoError(t, err)
 	}
 
