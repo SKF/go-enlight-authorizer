@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/SKF/go-enlight-sdk/v2/interceptors/reconnect"
+	"github.com/SKF/go-authorizer-client/interceptors/reconnect"
 	"github.com/SKF/go-utility/v2/log"
 	authorizeApi "github.com/SKF/proto/v2/authorize"
 	"github.com/SKF/proto/v2/common"

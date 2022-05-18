@@ -2,16 +2,17 @@ package authorize
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 
-	"github.com/SKF/go-enlight-sdk/v2/grpc"
-	"github.com/SKF/go-utility/v2/log"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
 	"github.com/pkg/errors"
-	googleGrpc "google.golang.org/grpc"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 type dataStore struct {
@@ -30,30 +31,24 @@ func getSecret(ctx context.Context, sess *session.Session, secretsName string, o
 
 	result, err := svc.GetSecretValue(input)
 	if err != nil {
-		log.WithTracing(ctx).WithError(err).
-			WithField("secretsName", secretsName).
-			Error("failed to get secrets")
-		err = errors.Wrapf(err, "failed to get secret value from '%s'", secretsName)
+		err = fmt.Errorf("failed to get secret value from '%s': %w", secretsName, err)
 		return
 	}
 
 	if err = json.Unmarshal([]byte(*result.SecretString), out); err != nil {
-		log.WithTracing(ctx).WithError(err).
-			WithField("secretsName", secretsName).
-			Error("failed to unmarshal secret")
-		err = errors.Wrapf(err, "failed to unmarshal secret from '%s'", secretsName)
+		err = fmt.Errorf("failed to unmarshal secret from '%s': %w", secretsName, err)
 	}
 
 	return err
 }
 
-func getCredentialOption(ctx context.Context, sess *session.Session, host, secretKeyName string) (googleGrpc.DialOption, error) {
+func getCredentialOption(ctx context.Context, sess *session.Session, host, secretKeyName string) (grpc.DialOption, error) {
 	var clientCert dataStore
 	if err := getSecret(ctx, sess, secretKeyName, &clientCert); err != nil {
 		panic(err)
 	}
 
-	return grpc.WithTransportCredentialsPEM(
+	return withTransportCredentialsPEM(
 		host,
 		clientCert.Crt, clientCert.Key, clientCert.CA,
 	)
@@ -65,4 +60,28 @@ func GetSecretKeyName(service, stage string) string {
 
 func GetSecretKeyArn(accountId, region, service, stage string) string {
 	return fmt.Sprintf("arn:aws:secretsmanager:%s:%s:secret:%s", region, accountId, GetSecretKeyName(service, stage))
+}
+
+func withTransportCredentialsPEM(serverName string, certPEMBlock, keyPEMBlock, caPEMBlock []byte) (opt grpc.DialOption, err error) {
+	certificate, err := tls.X509KeyPair(certPEMBlock, keyPEMBlock)
+	if err != nil {
+		err = fmt.Errorf("failed to load client certs, %+v", err)
+		return
+	}
+
+	certPool := x509.NewCertPool()
+	ok := certPool.AppendCertsFromPEM(caPEMBlock)
+	if !ok {
+		err = errors.New("failed to append certs")
+		return
+	}
+
+	transportCreds := credentials.NewTLS(&tls.Config{
+		ServerName:   serverName,
+		Certificates: []tls.Certificate{certificate},
+		RootCAs:      certPool,
+	})
+
+	opt = grpc.WithTransportCredentials(transportCreds)
+	return
 }

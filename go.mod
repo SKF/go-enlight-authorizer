@@ -3,16 +3,18 @@ module github.com/SKF/go-authorizer-client
 go 1.18
 
 require (
-	github.com/SKF/go-enlight-sdk/v2 v2.14.0
 	github.com/SKF/go-utility/v2 v2.28.0
 	github.com/SKF/proto/v2 v2.19.0-go
 	github.com/aws/aws-sdk-go v1.44.15
+	github.com/golang/protobuf v1.5.2
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/miekg/dns v1.1.49
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.7.1
+	go.opencensus.io v0.23.0
 	go.uber.org/zap v1.21.0
 	google.golang.org/grpc v1.46.2
+	gopkg.in/DataDog/dd-trace-go.v1 v1.29.2
 )
 
 require (
@@ -21,14 +23,12 @@ require (
 	github.com/SKF/go-enlight-middleware v0.4.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.1.2 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/philhofer/fwd v1.0.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/stretchr/objx v0.3.0 // indirect
 	github.com/tinylib/msgp v1.1.2 // indirect
-	go.opencensus.io v0.23.0 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/mod v0.4.2 // indirect
@@ -40,6 +40,5 @@ require (
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/genproto v0.0.0-20211118181313-81c1377c94b1 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
-	gopkg.in/DataDog/dd-trace-go.v1 v1.29.2 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
