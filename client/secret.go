@@ -1,4 +1,4 @@
-package authorize
+package client
 
 import (
 	"context"

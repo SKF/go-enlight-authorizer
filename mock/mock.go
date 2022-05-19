@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
 
-	authorize "github.com/SKF/go-authorizer-client"
+	authorize "github.com/SKF/go-authorizer/client"
 )
 
 type Client struct {

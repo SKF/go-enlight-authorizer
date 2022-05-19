@@ -1,4 +1,4 @@
-package authorize_test
+package client_test
 
 import (
 	"context"
@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	authorize "github.com/SKF/go-authorizer-client"
-	authMock "github.com/SKF/go-authorizer-client/mock"
+	authorize "github.com/SKF/go-authorizer/client"
+	authMock "github.com/SKF/go-authorizer/mock"
 	"github.com/SKF/go-utility/v2/log"
 	"github.com/SKF/proto/v2/common"
 	"go.uber.org/zap"

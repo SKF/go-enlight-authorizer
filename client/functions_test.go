@@ -1,12 +1,12 @@
-package authorize_test
+package client_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	authorize "github.com/SKF/go-authorizer-client"
-	authMock "github.com/SKF/go-authorizer-client/mock"
+	authorize "github.com/SKF/go-authorizer/client"
+	authMock "github.com/SKF/go-authorizer/mock"
 	grpcapi "github.com/SKF/proto/v2/authorize"
 	"github.com/SKF/proto/v2/common"
 

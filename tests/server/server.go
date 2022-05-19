@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 
-	pb "github.com/SKF/go-authorizer-client/tests/server/helloworld"
+	pb "github.com/SKF/go-authorizer/tests/server/helloworld"
 )
 
 type server struct {

@@ -1,4 +1,4 @@
-module github.com/SKF/go-authorizer-client
+module github.com/SKF/go-authorizer
 
 go 1.18
 

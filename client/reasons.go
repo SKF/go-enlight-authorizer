@@ -1,4 +1,4 @@
-package authorize
+package client
 
 const (
 	ReasonResourceNotFound = "resource_not_found"
