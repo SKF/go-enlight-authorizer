@@ -1,4 +1,4 @@
-module github.com/SKF/go-authorizer
+module github.com/SKF/go-enlight-authorizer
 
 go 1.18
 

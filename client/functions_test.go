@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	authorize "github.com/SKF/go-authorizer/client"
-	authMock "github.com/SKF/go-authorizer/mock"
+	authorize "github.com/SKF/go-enlight-authorizer/client"
+	authMock "github.com/SKF/go-enlight-authorizer/mock"
 	grpcapi "github.com/SKF/proto/v2/authorize"
 	"github.com/SKF/proto/v2/common"
 

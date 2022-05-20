@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SKF/go-authorizer/interceptors/reconnect"
-	"github.com/SKF/go-authorizer/tests/server"
-	pb "github.com/SKF/go-authorizer/tests/server/helloworld"
+	"github.com/SKF/go-enlight-authorizer/interceptors/reconnect"
+	"github.com/SKF/go-enlight-authorizer/tests/server"
+	pb "github.com/SKF/go-enlight-authorizer/tests/server/helloworld"
 	"github.com/SKF/go-utility/v2/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
 
-	authorize "github.com/SKF/go-authorizer/client"
+	authorize "github.com/SKF/go-enlight-authorizer/client"
 	grpcapi "github.com/SKF/proto/v2/authorize"
 	"github.com/SKF/proto/v2/common"
 )

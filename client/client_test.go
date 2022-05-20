@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	authorize "github.com/SKF/go-authorizer/client"
-	authMock "github.com/SKF/go-authorizer/mock"
+	authorize "github.com/SKF/go-enlight-authorizer/client"
+	authMock "github.com/SKF/go-enlight-authorizer/mock"
 	"github.com/SKF/go-utility/v2/log"
 	"github.com/SKF/proto/v2/common"
 	"go.uber.org/zap"
