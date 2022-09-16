@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
 
@@ -32,7 +32,7 @@ func (mock *Client) Dial(ctx context.Context, host, port string, opts ...grpc.Di
 	return args.Error(0)
 }
 
-func (mock *Client) DialUsingCredentials(ctx context.Context, sess *session.Session, host, port, secretKey string, opts ...grpc.DialOption) error {
+func (mock *Client) DialUsingCredentials(ctx context.Context, sess aws.Config, host, port, secretKey string, opts ...grpc.DialOption) error {
 	args := mock.Mock.Called(ctx, sess, host, port, secretKey, opts)
 	return args.Error(0)
 }

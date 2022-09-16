@@ -9,7 +9,7 @@ import (
 	"github.com/SKF/go-utility/v2/log"
 	authorizeApi "github.com/SKF/proto/v2/authorize"
 	"github.com/SKF/proto/v2/common"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -31,7 +31,7 @@ type client struct {
 
 type AuthorizeClient interface {
 	Dial(ctx context.Context, host, port string, opts ...grpc.DialOption) error
-	DialUsingCredentials(ctx context.Context, sess *session.Session, host, port, secretKey string, opts ...grpc.DialOption) error
+	DialUsingCredentials(ctx context.Context, cfg aws.Config, host, port, secretKey string, opts ...grpc.DialOption) error
 	SetRequestTimeout(d time.Duration)
 	DeepPing(ctx context.Context) error
 	Close() error
@@ -102,13 +102,13 @@ func (c *client) Dial(ctx context.Context, host, port string, opts ...grpc.DialO
 }
 
 // DialUsingCredentials creates a client connection to the given host with context (for timeout and transaction id)
-func (c *client) DialUsingCredentials(ctx context.Context, sess *session.Session, host, port, secretKey string, opts ...grpc.DialOption) error {
+func (c *client) DialUsingCredentials(ctx context.Context, cfg aws.Config, host, port, secretKey string, opts ...grpc.DialOption) error {
 	resolver.SetDefaultScheme("dns")
 	opts = append(opts, grpc.WithDefaultServiceConfig(defaultServiceConfig))
 
 	var newClientConn reconnect.NewConnectionFunc
 	newClientConn = func(invokerCtx context.Context, invokerConn *grpc.ClientConn, invokerOptions ...grpc.CallOption) (context.Context, *grpc.ClientConn, []grpc.CallOption, error) {
-		credOpt, err := getCredentialOption(invokerCtx, sess, host, secretKey)
+		credOpt, err := getCredentialOption(invokerCtx, cfg, host, secretKey)
 		if err != nil {
 			log.WithTracing(invokerCtx).WithError(err).Error("Failed to get credential options")
 			return invokerCtx, invokerConn, invokerOptions, err
@@ -129,7 +129,7 @@ func (c *client) DialUsingCredentials(ctx context.Context, sess *session.Session
 		return invokerCtx, c.conn, invokerOptions, err
 	}
 
-	opt, err := getCredentialOption(ctx, sess, host, secretKey)
+	opt, err := getCredentialOption(ctx, cfg, host, secretKey)
 	if err != nil {
 		return err
 	}
