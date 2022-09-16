@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/SKF/go-utility/v2 v2.28.0
 	github.com/SKF/proto/v2 v2.19.0-go
-	github.com/aws/aws-sdk-go v1.44.15
+	github.com/aws/aws-sdk-go-v2 v1.16.15
 	github.com/golang/protobuf v1.5.2
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/miekg/dns v1.1.49
@@ -18,13 +18,19 @@ require (
 )
 
 require (
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.22 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.16 // indirect
+	github.com/aws/smithy-go v1.13.3 // indirect
+)
+
+require (
 	github.com/DataDog/datadog-go v4.4.0+incompatible // indirect
 	github.com/Microsoft/go-winio v0.4.17 // indirect
 	github.com/SKF/go-enlight-middleware v0.4.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.16.0
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/uuid v1.1.2 // indirect
-	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/philhofer/fwd v1.0.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/stretchr/objx v0.3.0 // indirect

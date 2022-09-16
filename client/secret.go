@@ -7,9 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/secretsmanager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -21,15 +20,15 @@ type dataStore struct {
 	Crt []byte `json:"crt"`
 }
 
-func getSecret(ctx context.Context, sess *session.Session, secretsName string, out interface{}) (err error) {
+func getSecret(ctx context.Context, cfg aws.Config, secretsName string, out interface{}) (err error) {
 	// credentials - default
-	svc := secretsmanager.New(sess)
+	svc := secretsmanager.NewFromConfig(cfg)
 	input := &secretsmanager.GetSecretValueInput{
 		SecretId:     aws.String(secretsName),
 		VersionStage: aws.String("AWSCURRENT"),
 	}
 
-	result, err := svc.GetSecretValue(input)
+	result, err := svc.GetSecretValue(ctx, input)
 	if err != nil {
 		err = fmt.Errorf("failed to get secret value from '%s': %w", secretsName, err)
 		return
@@ -42,9 +41,9 @@ func getSecret(ctx context.Context, sess *session.Session, secretsName string, o
 	return err
 }
 
-func getCredentialOption(ctx context.Context, sess *session.Session, host, secretKeyName string) (grpc.DialOption, error) {
+func getCredentialOption(ctx context.Context, cfg aws.Config, host, secretKeyName string) (grpc.DialOption, error) {
 	var clientCert dataStore
-	if err := getSecret(ctx, sess, secretKeyName, &clientCert); err != nil {
+	if err := getSecret(ctx, cfg, secretKeyName, &clientCert); err != nil {
 		panic(err)
 	}
 
