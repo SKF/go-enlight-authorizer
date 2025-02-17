@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+option go_package = "github.com/SKF/go-enlight-authorizer/tests/server/helloworld/helloworld";
+
 package helloworld;
 
 // The greeting service definition.

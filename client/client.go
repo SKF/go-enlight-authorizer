@@ -2,26 +2,18 @@ package client
 
 import (
 	"context"
-	"os"
+	_ "embed"
 	"time"
 
-	"github.com/SKF/go-enlight-authorizer/interceptors/reconnect"
-	"github.com/SKF/go-utility/v2/log"
+	"github.com/SKF/go-enlight-authorizer/client/credentialsmanager"
 	authorizeApi "github.com/SKF/proto/v2/authorize"
 	"github.com/SKF/proto/v2/common"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/resolver"
 )
 
-const defaultServiceConfig = `{
-	"loadBalancingConfig": [
-		{ "round_robin": {} }
-	]
-}
-`
+//go:embed service_config.json
+var defaultServiceConfig string
 
 type client struct {
 	conn           *grpc.ClientConn
@@ -31,7 +23,7 @@ type client struct {
 
 type AuthorizeClient interface {
 	Dial(ctx context.Context, host, port string, opts ...grpc.DialOption) error
-	DialUsingCredentials(ctx context.Context, cfg aws.Config, host, port, secretKey string, opts ...grpc.DialOption) error
+	DialUsingCredentialsManager(ctx context.Context, cf credentialsmanager.CredentialsFetcher, host, port, secretKey string, opts ...grpc.DialOption) error
 	SetRequestTimeout(d time.Duration)
 	DeepPing(ctx context.Context) error
 	Close() error
@@ -86,58 +78,34 @@ func CreateClient() AuthorizeClient {
 }
 
 // Dial creates a client connection to the given host with context (for timeout and transaction id)
-func (c *client) Dial(ctx context.Context, host, port string, opts ...grpc.DialOption) (err error) {
+func (c *client) Dial(ctx context.Context, host, port string, opts ...grpc.DialOption) error {
 	resolver.SetDefaultScheme("dns")
 	opts = append(opts, grpc.WithDefaultServiceConfig(defaultServiceConfig))
 
-	conn, err := grpc.DialContext(ctx, host+":"+port, opts...)
-	if err != nil {
-		return
-	}
-
-	c.conn = conn
-	c.api = authorizeApi.NewAuthorizeClient(conn)
-	err = c.logClientState(ctx, "opening connection")
-	return
-}
-
-// DialUsingCredentials creates a client connection to the given host with context (for timeout and transaction id)
-func (c *client) DialUsingCredentials(ctx context.Context, cfg aws.Config, host, port, secretKey string, opts ...grpc.DialOption) error {
-	resolver.SetDefaultScheme("dns")
-	opts = append(opts, grpc.WithDefaultServiceConfig(defaultServiceConfig))
-
-	var newClientConn reconnect.NewConnectionFunc
-	newClientConn = func(invokerCtx context.Context, invokerConn *grpc.ClientConn, invokerOptions ...grpc.CallOption) (context.Context, *grpc.ClientConn, []grpc.CallOption, error) {
-		credOpt, err := getCredentialOption(invokerCtx, cfg, host, secretKey)
-		if err != nil {
-			log.WithTracing(invokerCtx).WithError(err).Error("Failed to get credential options")
-			return invokerCtx, invokerConn, invokerOptions, err
-		}
-
-		dialOptsReconnectRetry := reconnectRetryInterceptor(newClientConn)
-
-		dialOpts := append(opts, credOpt, dialOptsReconnectRetry, grpc.WithBlock())
-		newConn, err := grpc.DialContext(invokerCtx, host+":"+port, dialOpts...)
-		if err != nil {
-			log.WithTracing(invokerCtx).WithError(err).Error("Failed to dial context")
-			return invokerCtx, invokerConn, invokerOptions, err
-		}
-		_ = invokerConn.Close()
-
-		c.conn = newConn
-		c.api = authorizeApi.NewAuthorizeClient(c.conn)
-		return invokerCtx, c.conn, invokerOptions, err
-	}
-
-	opt, err := getCredentialOption(ctx, cfg, host, secretKey)
+	conn, err := grpc.NewClient(host+":"+port, opts...)
 	if err != nil {
 		return err
 	}
 
-	dialOptsReconnectRetry := reconnectRetryInterceptor(newClientConn)
-	newOpts := append(opts, opt, dialOptsReconnectRetry)
+	c.conn = conn
+	c.api = authorizeApi.NewAuthorizeClient(conn)
 
-	conn, err := grpc.DialContext(ctx, host+":"+port, newOpts...)
+	return nil
+}
+
+// DialUsingCredentials creates a client connection to the given host with context (for timeout and transaction id)
+func (c *client) DialUsingCredentialsManager(ctx context.Context, cf credentialsmanager.CredentialsFetcher, host, port, secretKey string, opts ...grpc.DialOption) error {
+	resolver.SetDefaultScheme("dns")
+	opts = append([]grpc.DialOption{grpc.WithDefaultServiceConfig(defaultServiceConfig)}, opts...)
+
+	opt, err := getCredentialOption(ctx, cf, host, secretKey)
+	if err != nil {
+		return err
+	}
+
+	newOpts := append(opts, opt, withDefaultRequestTimeout(c.requestTimeout))
+
+	conn, err := grpc.NewClient(host+":"+port, newOpts...)
 	if err != nil {
 		return err
 	}
@@ -145,32 +113,15 @@ func (c *client) DialUsingCredentials(ctx context.Context, cfg aws.Config, host,
 	c.conn = conn
 	c.api = authorizeApi.NewAuthorizeClient(c.conn)
 
-	err = c.logClientState(ctx, "opening connection")
-	return err
-}
-
-func reconnectRetryInterceptor(newClientConn reconnect.NewConnectionFunc) grpc.DialOption {
-	retryIC := grpc_retry.UnaryClientInterceptor(
-		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(100*time.Millisecond)),
-		grpc_retry.WithCodes(codes.Unavailable, codes.ResourceExhausted, codes.Aborted),
-	)
-
-	reconnectIC := reconnect.UnaryInterceptor(
-		reconnect.WithNewConnection(newClientConn),
-	)
-
-	dialOptsReconnectRetry := grpc.WithChainUnaryInterceptor(reconnectIC, retryIC) // first one is outer, being called last
-	return dialOptsReconnectRetry
-}
-
-func (c *client) Close() (err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
-	defer cancel()
-	err = c.logClientState(ctx, "closing connection")
-	if c.conn != nil {
-		return c.conn.Close()
-	}
 	return nil
+}
+
+func (c *client) Close() error {
+	if c.conn == nil {
+		return nil
+	}
+
+	return c.conn.Close()
 }
 
 func (c *client) DeepPing(ctx context.Context) error {
@@ -178,14 +129,15 @@ func (c *client) DeepPing(ctx context.Context) error {
 	return err
 }
 
-func (c *client) logClientState(ctx context.Context, state string) error {
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = ""
-	}
-	_, err = c.api.LogClientState(ctx, &authorizeApi.LogClientStateInput{
-		State:    state,
-		Hostname: hostname,
+func withDefaultRequestTimeout(requestTimeout time.Duration) grpc.DialOption {
+	return grpc.WithUnaryInterceptor(func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		var cancel context.CancelFunc
+
+		if _, ok := ctx.Deadline(); !ok {
+			ctx, cancel = context.WithTimeout(ctx, requestTimeout)
+			defer cancel()
+		}
+
+		return invoker(ctx, method, req, reply, cc, opts...)
 	})
-	return err
 }

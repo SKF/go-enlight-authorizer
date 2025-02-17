@@ -82,7 +82,7 @@ func (c *client) IsAuthorizedByEndpoint(ctx context.Context, api, method, endpoi
 		return false, err
 	}
 
-	return result.Ok, err
+	return result.Ok, nil
 }
 
 func (c *client) AddResource(ctx context.Context, resource *common.Origin) error {
@@ -400,6 +400,7 @@ func (c *client) RemoveUserRole(ctx context.Context, roleName string) error {
 	_, err := c.api.RemoveUserRole(ctx, &authorizeApi.RemoveUserRoleInput{
 		RoleName: roleName,
 	})
+
 	return err
 }
 

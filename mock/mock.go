@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
 
 	authorize "github.com/SKF/go-enlight-authorizer/client"
+	"github.com/SKF/go-enlight-authorizer/client/credentialsmanager"
 	grpcapi "github.com/SKF/proto/v2/authorize"
 	"github.com/SKF/proto/v2/common"
 )
@@ -32,8 +32,8 @@ func (mock *Client) Dial(ctx context.Context, host, port string, opts ...grpc.Di
 	return args.Error(0)
 }
 
-func (mock *Client) DialUsingCredentials(ctx context.Context, sess aws.Config, host, port, secretKey string, opts ...grpc.DialOption) error {
-	args := mock.Mock.Called(ctx, sess, host, port, secretKey, opts)
+func (mock *Client) DialUsingCredentialsManager(ctx context.Context, cf credentialsmanager.CredentialsFetcher, host, port, secretKey string, opts ...grpc.DialOption) error {
+	args := mock.Mock.Called(ctx, cf, host, port, secretKey, opts)
 	return args.Error(0)
 }
 

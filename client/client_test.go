@@ -21,12 +21,8 @@ import (
 	"google.golang.org/grpc/grpclog"
 )
 
-func clientForFakeHostName(t *testing.T, authority, host, port string, servers ...*authMock.AuthorizeServer) authorize.AuthorizeClient {
+func clientForFakeHostName(t *testing.T, authority, host, port string, _ ...*authMock.AuthorizeServer) authorize.AuthorizeClient {
 	hostnameWithAuthority := fmt.Sprintf("dns://%s/%s", authority, host)
-
-	for i := range servers {
-		servers[i].On("LogClientState", mock.Anything, mock.Anything).Return(&common.Void{}, nil).Maybe()
-	}
 
 	client := authorize.CreateClient()
 
@@ -141,7 +137,7 @@ func Test_Loadbalancing(t *testing.T) {
 		server, err := authMock.NewServerOnHostPort(ip, serverPort)
 		require.NoError(t, err)
 		dnsServer.AddEndpoint(domain, ip)
-		server.On("DeepPing", mock.Anything, mock.Anything).Return(&common.PrimitiveString{Value: ""}, nil).Once()
+		server.On("DeepPing", mock.Anything, mock.Anything).Return(&common.PrimitiveString{Value: ""}, nil).Maybe()
 		servers[i] = server
 	}
 
