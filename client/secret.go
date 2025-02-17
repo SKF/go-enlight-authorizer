@@ -151,7 +151,5 @@ func (c *autoRefreshingTransportCredentials) OverrideServerName(s string) error 
 		return nil
 	}
 
-	//nolint:staticcheck
-
-	return c.credentials.OverrideServerName(s)
+	return c.credentials.OverrideServerName(s) //nolint:staticcheck
 }
