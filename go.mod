@@ -1,6 +1,6 @@
 module github.com/SKF/go-enlight-authorizer
 
-go 1.24.0
+go 1.24
 
 require (
 	github.com/SKF/go-utility/v2 v2.30.0
