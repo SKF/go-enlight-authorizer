@@ -4,83 +4,152 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
+	"errors"
 	"fmt"
+	"net"
+	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
-	"github.com/pkg/errors"
+	"github.com/SKF/go-enlight-authorizer/client/credentialsmanager"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
-type dataStore struct {
-	CA  []byte `json:"ca"`
-	Key []byte `json:"key"`
-	Crt []byte `json:"crt"`
+const CertificateGracePeriod = 24 * time.Hour
+
+type autoRefreshingTransportCredentials struct {
+	credentials           credentials.TransportCredentials
+	cf                    credentialsmanager.CredentialsFetcher
+	secretKeyName         string
+	serverName            string
+	certificateExpiryTime time.Time
 }
 
-func getSecret(ctx context.Context, cfg aws.Config, secretsName string, out interface{}) (err error) {
-	// credentials - default
-	svc := secretsmanager.NewFromConfig(cfg)
-	input := &secretsmanager.GetSecretValueInput{
-		SecretId:     aws.String(secretsName),
-		VersionStage: aws.String("AWSCURRENT"),
-	}
-
-	result, err := svc.GetSecretValue(ctx, input)
+func getCredentialOption(ctx context.Context, cf credentialsmanager.CredentialsFetcher, host, secretKeyName string) (grpc.DialOption, error) {
+	c, err := NewAutoRefreshingTransportCredentials(ctx, cf, secretKeyName, host)
 	if err != nil {
-		err = fmt.Errorf("failed to get secret value from '%s': %w", secretsName, err)
-		return
+		return nil, err
 	}
 
-	if err = json.Unmarshal([]byte(*result.SecretString), out); err != nil {
-		err = fmt.Errorf("failed to unmarshal secret from '%s': %w", secretsName, err)
+	return grpc.WithTransportCredentials(c), nil
+}
+
+func NewAutoRefreshingTransportCredentials(ctx context.Context, cf credentialsmanager.CredentialsFetcher, secretKeyName, host string) (credentials.TransportCredentials, error) {
+	creds := &autoRefreshingTransportCredentials{
+		secretKeyName: secretKeyName,
+		cf:            cf,
+		serverName:    host,
 	}
 
-	return err
-}
-
-func getCredentialOption(ctx context.Context, cfg aws.Config, host, secretKeyName string) (grpc.DialOption, error) {
-	var clientCert dataStore
-	if err := getSecret(ctx, cfg, secretKeyName, &clientCert); err != nil {
-		panic(err)
+	if err := creds.loadCertificates(ctx); err != nil {
+		return nil, err
 	}
 
-	return withTransportCredentialsPEM(
-		host,
-		clientCert.Crt, clientCert.Key, clientCert.CA,
-	)
+	return creds, nil
 }
 
-func GetSecretKeyName(service, stage string) string {
-	return fmt.Sprintf("authorize/%s/grpc/client/%s", stage, service)
+func (c *autoRefreshingTransportCredentials) ensureValidCredentials(ctx context.Context) error {
+	if !c.shouldLoadNewCertificates() {
+		return nil
+	}
+
+	return c.loadCertificates(ctx)
 }
 
-func GetSecretKeyArn(accountId, region, service, stage string) string {
-	return fmt.Sprintf("arn:aws:secretsmanager:%s:%s:secret:%s", region, accountId, GetSecretKeyName(service, stage))
+func (c *autoRefreshingTransportCredentials) shouldLoadNewCertificates() bool {
+	earliestReload := c.certificateExpiryTime.Add(-CertificateGracePeriod)
+
+	return time.Now().After(earliestReload)
 }
 
-func withTransportCredentialsPEM(serverName string, certPEMBlock, keyPEMBlock, caPEMBlock []byte) (opt grpc.DialOption, err error) {
-	certificate, err := tls.X509KeyPair(certPEMBlock, keyPEMBlock)
+func (c *autoRefreshingTransportCredentials) loadCertificates(ctx context.Context) error {
+	config, err := c.loadCertificateIntoConfig(ctx)
 	if err != nil {
-		err = fmt.Errorf("failed to load client certs, %+v", err)
-		return
+		return err
+	}
+
+	var expiryTime time.Time
+	for _, chain := range config.Certificates {
+		for _, certificate := range chain.Certificate {
+			var parsedCertificate *x509.Certificate
+			if parsedCertificate, err = x509.ParseCertificate(certificate); err != nil {
+				return err
+			}
+
+			t := parsedCertificate.NotAfter
+			if expiryTime == (time.Time{}) || t.Before(expiryTime) {
+				expiryTime = t
+			}
+		}
+	}
+
+	c.credentials = credentials.NewTLS(config)
+	c.certificateExpiryTime = expiryTime
+
+	return nil
+}
+
+func (c *autoRefreshingTransportCredentials) loadCertificateIntoConfig(ctx context.Context) (*tls.Config, error) {
+	secrets, err := c.cf.GetDataStore(ctx, c.secretKeyName)
+	if err != nil {
+		return nil, err
+	}
+
+	certificate, err := tls.X509KeyPair(secrets.Crt, secrets.Key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load client certs: %w", err)
 	}
 
 	certPool := x509.NewCertPool()
-	ok := certPool.AppendCertsFromPEM(caPEMBlock)
+	ok := certPool.AppendCertsFromPEM(secrets.CA)
 	if !ok {
-		err = errors.New("failed to append certs")
-		return
+		return nil, errors.New("failed to append certs")
 	}
 
-	transportCreds := credentials.NewTLS(&tls.Config{
-		ServerName:   serverName,
+	return &tls.Config{
+		ServerName:   c.serverName,
 		Certificates: []tls.Certificate{certificate},
 		RootCAs:      certPool,
-	})
+	}, nil
+}
 
-	opt = grpc.WithTransportCredentials(transportCreds)
-	return
+func (c *autoRefreshingTransportCredentials) ClientHandshake(ctx context.Context, s string, conn net.Conn) (net.Conn, credentials.AuthInfo, error) {
+	if err := c.ensureValidCredentials(ctx); err != nil {
+		return nil, nil, err
+	}
+
+	return c.credentials.ClientHandshake(ctx, s, conn)
+}
+
+func (c *autoRefreshingTransportCredentials) ServerHandshake(conn net.Conn) (net.Conn, credentials.AuthInfo, error) {
+	if err := c.ensureValidCredentials(context.Background()); err != nil {
+		return nil, nil, err
+	}
+
+	return c.credentials.ServerHandshake(conn)
+}
+
+func (c *autoRefreshingTransportCredentials) Info() credentials.ProtocolInfo {
+	if c.credentials == nil {
+		return credentials.ProtocolInfo{}
+	}
+
+	return c.credentials.Info()
+}
+
+func (c *autoRefreshingTransportCredentials) Clone() credentials.TransportCredentials {
+	return &autoRefreshingTransportCredentials{
+		credentials:           c.credentials.Clone(),
+		cf:                    c.cf,
+		secretKeyName:         c.secretKeyName,
+		serverName:            c.serverName,
+		certificateExpiryTime: c.certificateExpiryTime,
+	}
+}
+
+func (c *autoRefreshingTransportCredentials) OverrideServerName(s string) error {
+	if c.credentials == nil {
+		return nil
+	}
+
+	return c.credentials.OverrideServerName(s) //nolint:staticcheck
 }

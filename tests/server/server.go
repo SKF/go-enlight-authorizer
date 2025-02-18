@@ -22,11 +22,12 @@ type server struct {
 
 type service struct {
 	calls int
+	pb.UnimplementedGreeterServer
 }
 
 func (s *service) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
 	s.calls++
-	return &pb.HelloReply{Message: "Hello " + in.Name}, nil
+	return &pb.HelloReply{Message: "Hello " + in.GetName()}, nil
 }
 
 func (s *server) Start() {
